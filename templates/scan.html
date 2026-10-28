@@ -98,7 +98,13 @@
             }
         }
 
-        async function handleScan(uuid) {
+        async function handleScan(decodedText) {
+            // EXTRACT UUID FROM THE LINK
+            let uuid = decodedText.trim();
+            if (uuid.includes("child=")) {
+                uuid = uuid.split("child=")[1];
+            }
+
             const child = await dbGet('roster', uuid);
             if (!child) return showResult('Unknown card — call admin', 'error');
 
@@ -120,9 +126,10 @@
                 scanned_at: now.toISOString()
             });
 
-         showResult(`Meal approved — ${child.name}`, 'success');
-         // Wait 2 seconds for the screen to show "Approved", then force sync
-         setTimeout(() => syncQueue(), 2000); 
+            showResult(`Meal approved — ${child.name}`, 'success');
+            
+            // FORCE SYNC AFTER 2 SECONDS
+            setTimeout(() => syncQueue(), 2000);
         }
 
         function showResult(msg, cls) {
