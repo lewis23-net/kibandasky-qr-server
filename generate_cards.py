@@ -28,7 +28,7 @@ def make_qr_image(uuid_str):
         border=6,     
     )
     # --- IMPORTANT: CHANGE THIS URL TO YOUR ACTUAL RENDER URL ---
-    qr.add_data(f"https://YOUR-RENDER-URL.onrender.com/scan?child={uuid_str}")
+    qr.add_data(f"https://kibandasky-qr-server.onrender.com/scan?child={uuid_str}")
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     if hasattr(img, "get_image"):
