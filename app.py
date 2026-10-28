@@ -17,8 +17,15 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 
 # Database configuration
 db_url = os.getenv('DATABASE_URL', 'sqlite:///local.db')
+
+# Fix for Render / PostgreSQL: ensure postgres:// becomes postgresql://
 if db_url.startswith('postgres://'):
     db_url = db_url.replace('postgres://', 'postgresql://', 1)
+
+# CRITICAL FIX: Force SQLAlchemy to use the psycopg2 driver instead of psycopg (version 3)
+if db_url.startswith('postgresql://'):
+    db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
@@ -30,7 +37,7 @@ with app.app_context():
     # Seed admin user
     if not User.query.filter_by(role='admin').first():
         admin = User(
-            email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
+            email=os.getenv('ADMIN_EMAIL', 'lewisminda23@gmail.com'),
             password_hash=generate_password_hash(
                 os.getenv('ADMIN_PASSWORD', 'changeme')
             ),
