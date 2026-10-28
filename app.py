@@ -55,9 +55,7 @@ def login_required(roles=None):
         def wrapper(*args, **kwargs):
             user = session.get('user')
             if not user:
-                # If they scanned a QR code but aren't logged in, 
-                # send them to login, then back to the scanner.
-                return redirect(url_for('login', next=request.url))
+                return redirect(url_for('login'))
             if roles and user['role'] not in roles:
                 return "Forbidden", 403
             return f(*args, **kwargs)
@@ -90,7 +88,6 @@ def login():
                 'role': user.role,
                 'hotel_id': user.hotel_id
             }
-            # If they were sent here from a QR scan, send them right to scan page
             if user.role == 'admin':
                 return redirect(url_for('dashboard'))
             return redirect(url_for('scan_page'))
@@ -104,12 +101,13 @@ def logout():
     return redirect(url_for('login'))
 
 
+# --- THE FIX: THIS ROUTE NOW CATCHES BOTH /scan AND /scan/<child_uuid> ---
 @app.route('/scan')
+@app.route('/scan/<child_uuid>')
 @login_required(roles=['hotel', 'admin'])
-def scan_page():
+def scan_page(child_uuid=None):
     hotel_id = session['user'].get('hotel_id') or 'default_hotel'
-    # The template now receives the child UUID from the URL if it exists
-    scanned_child = request.args.get('child', '')
+    scanned_child = child_uuid or request.args.get('child', '')
     return render_template('scan.html', hotel_id=hotel_id, scanned_child=scanned_child)
 
 
