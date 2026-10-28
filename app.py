@@ -53,7 +53,8 @@ def login_required(roles=None):
         def wrapper(*args, **kwargs):
             user = session.get('user')
             if not user:
-                return redirect(url_for('login'))
+                # Redirects to login. Once logged in, they will be sent back to scan.
+                return redirect(url_for('login', next=request.url))
             if roles and user['role'] not in roles:
                 return "Forbidden", 403
             return f(*args, **kwargs)
@@ -86,7 +87,11 @@ def login():
                 'role': user.role,
                 'hotel_id': user.hotel_id
             }
-            # If they came from a QR scan, they will be redirected back to /scan
+            # If they were trying to scan a card, send them right back to it
+            next_page = request.args.get('next')
+            if next_page and '/scan' in next_page:
+                return redirect(next_page)
+            
             if user.role == 'admin':
                 return redirect(url_for('dashboard'))
             return redirect(url_for('scan_page'))
@@ -106,7 +111,6 @@ def logout():
 def scan_page(child_uuid=None):
     hotel_id = session['user'].get('hotel_id') or 'default_hotel'
     scanned_child = child_uuid or request.args.get('child', '')
-    # The template now handles the 24-hour logic
     return render_template('scan.html', hotel_id=hotel_id, scanned_child=scanned_child)
 
 
@@ -192,19 +196,6 @@ def admin_stats():
         'meals_today': Redemption.query.filter(Redemption.scanned_at >= today_start).count(),
         'conflicts': Redemption.query.filter_by(conflict=True).count()
     })
-
-
-@app.route('/api/children', methods=['POST'])
-@login_required(roles=['admin'])
-def add_child():
-    d = request.get_json(silent=True) or {}
-    if not d.get('uuid') or not d.get('name'):
-        return jsonify({'error': 'uuid and name required'}), 400
-    if Child.query.filter_by(uuid=d['uuid']).first():
-        return jsonify({'error': 'child already exists'}), 400
-    db.session.add(Child(uuid=d['uuid'], name=d['name']))
-    db.session.commit()
-    return jsonify({'ok': True})
 
 
 @app.route('/api/users', methods=['POST'])

@@ -14,20 +14,35 @@
         .stat .label { font-size: 14px; color: #666; }
         #sync-status { padding: 10px; background: #fff3cd; color: #856404; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
         button { padding: 10px 18px; font-size: 15px; margin: 4px; cursor: pointer; border: none; border-radius: 6px; background: #007bff; color: white; }
+        input { padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 300px; box-sizing: border-box; display: block; }
+        .success-msg { color: green; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
     <h1>Admin Dashboard</h1>
     <div id="sync-status">Last synced: <span id="last-sync">never</span></div>
+    
     <div class="card stats">
         <div class="stat"><div class="number" id="total-children">-</div><div class="label">Total Children</div></div>
         <div class="stat"><div class="number" id="meals-today">-</div><div class="label">Meals Today</div></div>
         <div class="stat"><div class="number" id="conflicts">-</div><div class="label">Conflicts</div></div>
     </div>
+
     <div class="card">
+        <h3>Quick Actions</h3>
         <button onclick="window.location.href='/scan'">Go to Scanner</button>
         <button onclick="refreshStats()">Refresh</button>
         <button onclick="window.location.href='/logout'">Logout</button>
+    </div>
+
+    <div class="card">
+        <h3>Create Hotel Scanner Account</h3>
+        <p style="font-size: 13px; color: #666;">Only users created here will be able to log in and scan cards.</p>
+        <input type="email" id="new-email" placeholder="Hotel Manager Email (e.g. hotelA@kibanda.com)">
+        <input type="password" id="new-password" placeholder="Password (e.g. HotelA2026!)">
+        <input type="text" id="new-hotelid" placeholder="Hotel ID (e.g. hotel_a)">
+        <button onclick="createUser()">Create Account</button>
+        <div id="create-msg" class="success-msg"></div>
     </div>
 
     <script>
@@ -43,6 +58,34 @@
                 document.getElementById('sync-status').textContent = 'Offline — showing last known data.';
             }
         }
+
+        async function createUser() {
+            const email = document.getElementById('new-email').value;
+            const password = document.getElementById('new-password').value;
+            const hotel_id = document.getElementById('new-hotelid').value;
+            
+            if (!email || !password) {
+                alert("Email and password are required");
+                return;
+            }
+
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, password, hotel_id, role: 'hotel' })
+            });
+            
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('create-msg').textContent = "Account created successfully!";
+                document.getElementById('new-email').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('new-hotelid').value = '';
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
         refreshStats();
         setInterval(refreshStats, 5000);
     </script>
