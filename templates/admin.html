@@ -16,6 +16,9 @@
         button { padding: 10px 18px; font-size: 15px; margin: 4px; cursor: pointer; border: none; border-radius: 6px; background: #007bff; color: white; }
         input { padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 300px; box-sizing: border-box; display: block; }
         .success-msg { color: green; font-weight: bold; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
@@ -45,6 +48,18 @@
         <div id="create-msg" class="success-msg"></div>
     </div>
 
+    <div class="card">
+        <h3>Active Scanners</h3>
+        <table id="users-table">
+            <thead>
+                <tr><th>Email</th><th>Role</th><th>Hotel ID</th></tr>
+            </thead>
+            <tbody>
+                <!-- Filled by JS -->
+            </tbody>
+        </table>
+    </div>
+
     <script>
         async function refreshStats() {
             try {
@@ -57,6 +72,20 @@
             } catch (e) {
                 document.getElementById('sync-status').textContent = 'Offline — showing last known data.';
             }
+        }
+
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const users = await res.json();
+                const tbody = document.querySelector('#users-table tbody');
+                tbody.innerHTML = '';
+                users.forEach(u => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${u.email}</td><td>${u.role}</td><td>${u.hotel_id || '-'}</td>`;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) { }
         }
 
         async function createUser() {
@@ -82,13 +111,15 @@
                 document.getElementById('new-password').value = '';
                 document.getElementById('new-hotelid').value = '';
                 setTimeout(() => { document.getElementById('create-msg').textContent = ''; }, 3000);
+                loadUsers();
             } else {
                 alert("Error: " + data.error);
             }
         }
 
         refreshStats();
+        loadUsers();
         setInterval(refreshStats, 5000);
     </script>
 </body>
-</html>s
+</html>

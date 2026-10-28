@@ -23,7 +23,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
-
 with app.app_context():
     db.create_all()
 
@@ -39,8 +38,10 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-    # AUTO-SYNC CHILDREN FROM CSV ON STARTUP
+    # FORCE SYNC FROM CSV ON STARTUP
     if os.path.exists('children.csv'):
+        # Optional: Clear existing children to prevent duplicates
+        # db.session.query(Child).delete() 
         with open('children.csv', newline='', encoding='utf-8') as f:
             for row in csv.DictReader(f):
                 existing_child = Child.query.filter_by(uuid=row['uuid']).first()
@@ -49,7 +50,6 @@ with app.app_context():
                 else:
                     existing_child.name = row['name']
             db.session.commit()
-
 
 def login_required(roles=None):
     def decorator(f):
@@ -64,7 +64,6 @@ def login_required(roles=None):
         return wrapper
     return decorator
 
-
 @app.route('/')
 def index():
     user = session.get('user')
@@ -73,7 +72,6 @@ def index():
     if user['role'] == 'admin':
         return redirect(url_for('dashboard'))
     return redirect(url_for('scan_page'))
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -90,8 +88,6 @@ def login():
                 'role': user.role,
                 'hotel_id': user.hotel_id
             }
-            
-            # If they were trying to scan a card, send them right back to it
             next_page = request.args.get('next')
             if next_page and '/scan' in next_page:
                 return redirect(next_page)
@@ -102,12 +98,10 @@ def login():
         error = "Invalid email or password"
     return render_template('login.html', error=error)
 
-
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
-
 
 @app.route('/scan')
 @app.route('/scan/<child_uuid>')
@@ -117,12 +111,10 @@ def scan_page(child_uuid=None):
     scanned_child = child_uuid or request.args.get('child', '')
     return render_template('scan.html', hotel_id=hotel_id, scanned_child=scanned_child)
 
-
 @app.route('/admin')
 @login_required(roles=['admin'])
 def dashboard():
     return render_template('admin.html')
-
 
 @app.route('/api/roster')
 @login_required(roles=['hotel', 'admin'])
@@ -133,7 +125,6 @@ def get_roster():
         'name': c.name,
         'last_meal_at': (c.last_meal_at.isoformat() + 'Z') if c.last_meal_at else None
     } for c in children])
-
 
 @app.route('/api/sync', methods=['POST'])
 @login_required(roles=['hotel', 'admin'])
@@ -146,14 +137,10 @@ def sync():
     for e in events:
         if not e.get('event_id') or not e.get('child_uuid') or not e.get('scanned_at'):
             continue
-            
         if Redemption.query.filter_by(event_id=e['event_id']).first():
             continue
-
         try:
-            scanned_at = datetime.fromisoformat(
-                e['scanned_at'].replace('Z', '+00:00')
-            )
+            scanned_at = datetime.fromisoformat(e['scanned_at'].replace('Z', '+00:00'))
             if scanned_at.tzinfo is not None:
                 scanned_at = scanned_at.replace(tzinfo=None)
         except Exception:
@@ -165,31 +152,22 @@ def sync():
             hotel_id=hotel_id,
             scanned_at=scanned_at
         ))
-
         child = Child.query.filter_by(uuid=e['child_uuid']).first()
         if child and (not child.last_meal_at or scanned_at > child.last_meal_at):
             child.last_meal_at = scanned_at
-
         processed += 1
 
     db.session.commit()
     _flag_conflicts()
     return jsonify({'ok': True, 'processed': processed})
 
-
 def _flag_conflicts():
     for child in Child.query.all():
-        rows = (
-            Redemption.query
-            .filter_by(child_uuid=child.uuid)
-            .order_by(Redemption.scanned_at)
-            .all()
-        )
+        rows = Redemption.query.filter_by(child_uuid=child.uuid).order_by(Redemption.scanned_at).all()
         for i in range(1, len(rows)):
             if rows[i].scanned_at - rows[i - 1].scanned_at < timedelta(hours=24):
                 rows[i].conflict = True
     db.session.commit()
-
 
 @app.route('/api/admin/stats')
 @login_required(roles=['admin'])
@@ -201,10 +179,13 @@ def admin_stats():
         'conflicts': Redemption.query.filter_by(conflict=True).count()
     })
 
-
-@app.route('/api/users', methods=['POST'])
+@app.route('/api/users', methods=['GET', 'POST'])
 @login_required(roles=['admin'])
-def create_user():
+def handle_users():
+    if request.method == 'GET':
+        users = User.query.all()
+        return jsonify([{'email': u.email, 'role': u.role, 'hotel_id': u.hotel_id} for u in users])
+    
     d = request.get_json(silent=True) or {}
     if not d.get('email') or not d.get('password'):
         return jsonify({'error': 'email and password required'}), 400
@@ -219,13 +200,11 @@ def create_user():
     db.session.commit()
     return jsonify({'ok': True})
 
-
 @app.route('/sw.js')
 def sw():
     resp = send_from_directory('static', 'sw.js', mimetype='application/javascript')
     resp.headers['Service-Worker-Allowed'] = '/'
     return resp
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
