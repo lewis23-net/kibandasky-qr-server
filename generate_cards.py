@@ -27,7 +27,7 @@ def make_qr_image(uuid_str):
         box_size=20,  
         border=6,     
     )
-    # This exact URL opens your Render app and routes perfectly
+    # The correct Render link
     qr.add_data(f"https://kibandasky-qr-server.onrender.com/scan/{uuid_str}")
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")

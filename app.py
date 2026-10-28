@@ -27,7 +27,6 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-    # Seed admin user
     if not User.query.filter_by(role='admin').first():
         admin = User(
             email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
@@ -40,7 +39,6 @@ with app.app_context():
         db.session.commit()
         print("Admin user created.")
 
-    # Seed children from CSV if database is empty
     if Child.query.count() == 0 and os.path.exists('children.csv'):
         with open('children.csv', newline='', encoding='utf-8') as f:
             for row in csv.DictReader(f):
@@ -88,6 +86,7 @@ def login():
                 'role': user.role,
                 'hotel_id': user.hotel_id
             }
+            # If they came from a QR scan, they will be redirected back to /scan
             if user.role == 'admin':
                 return redirect(url_for('dashboard'))
             return redirect(url_for('scan_page'))
@@ -101,13 +100,13 @@ def logout():
     return redirect(url_for('login'))
 
 
-# --- THE FIX: THIS ROUTE NOW CATCHES BOTH /scan AND /scan/<child_uuid> ---
 @app.route('/scan')
 @app.route('/scan/<child_uuid>')
 @login_required(roles=['hotel', 'admin'])
 def scan_page(child_uuid=None):
     hotel_id = session['user'].get('hotel_id') or 'default_hotel'
     scanned_child = child_uuid or request.args.get('child', '')
+    # The template now handles the 24-hour logic
     return render_template('scan.html', hotel_id=hotel_id, scanned_child=scanned_child)
 
 
