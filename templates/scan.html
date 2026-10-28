@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scan Meal Card</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <script src="/static/js/html5-qrcode.min.js"></script>
+    <script src="/static/js/db.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f0f0; margin: 0; }
+        h2 { margin-top: 0; }
+        #reader { width: 100%; max-width: 400px; margin: 0 auto; }
+        button { padding: 15px 30px; font-size: 18px; margin: 8px; cursor: pointer; border: none; border-radius: 8px; width: 90%; max-width: 320px; }
+        .scan-btn { background: #007bff; color: white; }
+        .manual-btn { background: #6c757d; color: white; }
+        #result { margin-top: 20px; padding: 20px; border-radius: 8px; font-size: 20px; font-weight: bold; min-height: 30px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #cce5ff; color: #004085; }
+        #status { color: #666; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h2>Kibanda Scanner</h2>
+    <p id="status">Initializing...</p>
+    <button class="scan-btn" onclick="startCamera()">Scan QR Code</button>
+    <button class="manual-btn" onclick="manualEntry()">Type ID Manually</button>
+    <div id="reader"></div>
+    <div id="result"></div>
+
+    <script>
+        const HOTEL_ID = "{{ hotel_id }}";
+        let scanner = null;
+        let roster = [];
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+
+        window.addEventListener('load', async () => {
+            roster = await dbGetAll('roster');
+            if (roster.length === 0) {
+                document.getElementById('status').textContent = 'Downloading roster...';
+                await refreshRoster();
+            } else {
+                document.getElementById('status').textContent = `Ready — ${roster.length} cards loaded.`;
+            }
+        });
+
+        async function refreshRoster() {
+            try {
+                const res = await fetch('/api/roster');
+                if (!res.ok) throw new Error('network');
+                const data = await res.json();
+                for (const child of data) {
+                    await dbPut('roster', child);
+                }
+                roster = data;
+                document.getElementById('status').textContent = `Roster updated — ${data.length} cards.`;
+            } catch (e) {
+                document.getElementById('status').textContent = 'Offline — using cached roster.';
+            }
+        }
+
+        function startCamera() {
+            document.getElementById('reader').style.display = 'block';
+            if (scanner) return;
+            scanner = new Html5Qrcode('reader');
+            scanner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                () => {}
+            ).catch(err => {
+                alert('Camera error: ' + err);
+                scanner = null;
+            });
+        }
+
+        async function onScanSuccess(decodedText) {
+            if (scanner) {
+                await scanner.stop().catch(() => {});
+                scanner = null;
+            }
+            document.getElementById('reader').style.display = 'none';
+            await handleScan(decodedText.trim());
+        }
+
+        async function manualEntry() {
+            const id = prompt('Enter the 8-character ID from the card:');
+            if (!id) return;
+            const match = roster.find(c => c.uuid.startsWith(id.trim()));
+            if (match) {
+                await handleScan(match.uuid);
+            } else {
+                showResult('Unknown ID — call admin', 'error');
+            }
+        }
+
+        async function handleScan(uuid) {
+            const child = await dbGet('roster', uuid);
+            if (!child) return showResult('Unknown card — call admin', 'error');
+
+            const now = new Date();
+            const lastMeal = child.last_meal_at ? new Date(child.last_meal_at) : null;
+            const eligible = !lastMeal || (now - lastMeal >= 24 * 60 * 60 * 1000);
+
+            if (!eligible) {
+                const next = new Date(lastMeal.getTime() + 24 * 60 * 60 * 1000);
+                return showResult(`${child.name} already ate. Next after ${next.toLocaleString()}`, 'error');
+            }
+
+            child.last_meal_at = now.toISOString();
+            await dbPut('roster', child);
+
+            await dbPut('queue', {
+                event_id: crypto.randomUUID(),
+                child_uuid: uuid,
+                scanned_at: now.toISOString()
+            });
+
+         showResult(`Meal approved — ${child.name}`, 'success');
+         // Wait 2 seconds for the screen to show "Approved", then force sync
+         setTimeout(() => syncQueue(), 2000); 
+        }
+
+        function showResult(msg, cls) {
+            const el = document.getElementById('result');
+            el.textContent = msg;
+            el.className = cls;
+            setTimeout(() => { el.textContent = ''; el.className = ''; }, 5000);
+        }
+
+        async function syncQueue() {
+            if (!navigator.onLine) return;
+            const events = await dbGetAll('queue');
+            if (events.length === 0) return;
+            try {
+                const res = await fetch('/api/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ events })
+                });
+                if (res.ok) {
+                    for (const e of events) await dbDelete('queue', e.event_id);
+                    await refreshRoster();
+                }
+            } catch (e) {}
+        }
+
+        window.addEventListener('online', syncQueue);
+    </script>
+</body>
+</html>

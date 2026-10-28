@@ -1,0 +1,8 @@
+{
+  "name": "Kibanda Meal Scanner",
+  "short_name": "KibandaScan",
+  "start_url": "/scan",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff"
+}

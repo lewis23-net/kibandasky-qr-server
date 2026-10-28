@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f8f9fa; margin: 0; }
+        h1 { margin-top: 0; }
+        .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .stats { display: flex; flex-wrap: wrap; gap: 20px; }
+        .stat { flex: 1; min-width: 120px; text-align: center; }
+        .stat .number { font-size: 36px; font-weight: bold; color: #007bff; }
+        .stat .label { font-size: 14px; color: #666; }
+        #sync-status { padding: 10px; background: #fff3cd; color: #856404; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
+        button { padding: 10px 18px; font-size: 15px; margin: 4px; cursor: pointer; border: none; border-radius: 6px; background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+    <div id="sync-status">Last synced: <span id="last-sync">never</span></div>
+    <div class="card stats">
+        <div class="stat"><div class="number" id="total-children">-</div><div class="label">Total Children</div></div>
+        <div class="stat"><div class="number" id="meals-today">-</div><div class="label">Meals Today</div></div>
+        <div class="stat"><div class="number" id="conflicts">-</div><div class="label">Conflicts</div></div>
+    </div>
+    <div class="card">
+        <button onclick="window.location.href='/scan'">Go to Scanner</button>
+        <button onclick="refreshStats()">Refresh</button>
+        <button onclick="window.location.href='/logout'">Logout</button>
+    </div>
+
+    <script>
+        async function refreshStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+                document.getElementById('total-children').textContent = data.total_children;
+                document.getElementById('meals-today').textContent = data.meals_today;
+                document.getElementById('conflicts').textContent = data.conflicts;
+                document.getElementById('last-sync').textContent = new Date().toLocaleTimeString();
+            } catch (e) {
+                document.getElementById('sync-status').textContent = 'Offline — showing last known data.';
+            }
+        }
+        refreshStats();
+        setInterval(refreshStats, 5000);
+    </script>
+</body>
+</html>
