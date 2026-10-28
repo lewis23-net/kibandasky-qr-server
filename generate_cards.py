@@ -27,8 +27,8 @@ def make_qr_image(uuid_str):
         box_size=20,  
         border=6,     
     )
-    # --- IMPORTANT: CHANGE THIS URL TO YOUR ACTUAL RENDER URL ---
-    qr.add_data(f"https://kibandasky-qr-server.onrender.com/scan?child={uuid_str}")
+    # NO LINKS. Just the raw text UUID. This will never give a 404 error.
+    qr.add_data(uuid_str)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     if hasattr(img, "get_image"):
@@ -93,3 +93,4 @@ for child in children:
     back.save(f"cards/{child['short_id']}_{child['name'].replace(' ', '')}_back.png")
 
 print(f"Done. {len(children)} unique cards generated in ./cards/")
+print("IMPORTANT: The QR codes now contain ONLY the raw text ID, not a web link.")
