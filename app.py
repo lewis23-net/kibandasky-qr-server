@@ -17,15 +17,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 
 # Database configuration
 db_url = os.getenv('DATABASE_URL', 'sqlite:///local.db')
-
-# Fix for Render / PostgreSQL: ensure postgres:// becomes postgresql://
 if db_url.startswith('postgres://'):
     db_url = db_url.replace('postgres://', 'postgresql://', 1)
-
-# CRITICAL FIX: Force SQLAlchemy to use the psycopg2 driver instead of psycopg (version 3)
-if db_url.startswith('postgresql://'):
-    db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
-
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
@@ -37,7 +30,7 @@ with app.app_context():
     # Seed admin user
     if not User.query.filter_by(role='admin').first():
         admin = User(
-            email=os.getenv('ADMIN_EMAIL', 'lewisminda23@gmail.com'),
+            email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
             password_hash=generate_password_hash(
                 os.getenv('ADMIN_PASSWORD', 'changeme')
             ),
@@ -62,7 +55,9 @@ def login_required(roles=None):
         def wrapper(*args, **kwargs):
             user = session.get('user')
             if not user:
-                return redirect(url_for('login'))
+                # If they scanned a QR code but aren't logged in, 
+                # send them to login, then back to the scanner.
+                return redirect(url_for('login', next=request.url))
             if roles and user['role'] not in roles:
                 return "Forbidden", 403
             return f(*args, **kwargs)
@@ -95,6 +90,7 @@ def login():
                 'role': user.role,
                 'hotel_id': user.hotel_id
             }
+            # If they were sent here from a QR scan, send them right to scan page
             if user.role == 'admin':
                 return redirect(url_for('dashboard'))
             return redirect(url_for('scan_page'))
@@ -112,7 +108,9 @@ def logout():
 @login_required(roles=['hotel', 'admin'])
 def scan_page():
     hotel_id = session['user'].get('hotel_id') or 'default_hotel'
-    return render_template('scan.html', hotel_id=hotel_id)
+    # The template now receives the child UUID from the URL if it exists
+    scanned_child = request.args.get('child', '')
+    return render_template('scan.html', hotel_id=hotel_id, scanned_child=scanned_child)
 
 
 @app.route('/admin')
@@ -144,7 +142,6 @@ def sync():
         if not e.get('event_id') or not e.get('child_uuid') or not e.get('scanned_at'):
             continue
             
-        # Idempotency check: if this exact event was already saved, skip it
         if Redemption.query.filter_by(event_id=e['event_id']).first():
             continue
 
@@ -157,7 +154,6 @@ def sync():
         except Exception:
             scanned_at = datetime.utcnow()
 
-        # Add the redemption record
         db.session.add(Redemption(
             event_id=e['event_id'],
             child_uuid=e['child_uuid'],
@@ -165,7 +161,6 @@ def sync():
             scanned_at=scanned_at
         ))
 
-        # Update the child's last_meal_at timestamp
         child = Child.query.filter_by(uuid=e['child_uuid']).first()
         if child and (not child.last_meal_at or scanned_at > child.last_meal_at):
             child.last_meal_at = scanned_at
@@ -178,7 +173,6 @@ def sync():
 
 
 def _flag_conflicts():
-    """Mark redemptions as conflict if a child has >1 meal in 24h."""
     for child in Child.query.all():
         rows = (
             Redemption.query
