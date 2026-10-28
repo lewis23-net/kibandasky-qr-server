@@ -27,6 +27,7 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+    # Seed admin user
     if not User.query.filter_by(role='admin').first():
         admin = User(
             email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
@@ -37,14 +38,17 @@ with app.app_context():
         )
         db.session.add(admin)
         db.session.commit()
-        print("Admin user created.")
 
-    if Child.query.count() == 0 and os.path.exists('children.csv'):
+    # AUTO-SYNC CHILDREN FROM CSV ON STARTUP
+    if os.path.exists('children.csv'):
         with open('children.csv', newline='', encoding='utf-8') as f:
             for row in csv.DictReader(f):
-                db.session.add(Child(uuid=row['uuid'], name=row['name']))
-        db.session.commit()
-        print(f"Imported {Child.query.count()} children from children.csv")
+                existing_child = Child.query.filter_by(uuid=row['uuid']).first()
+                if not existing_child:
+                    db.session.add(Child(uuid=row['uuid'], name=row['name']))
+                else:
+                    existing_child.name = row['name']
+            db.session.commit()
 
 
 def login_required(roles=None):
@@ -53,10 +57,9 @@ def login_required(roles=None):
         def wrapper(*args, **kwargs):
             user = session.get('user')
             if not user:
-                # Redirects to login. Once logged in, they will be sent back to scan.
                 return redirect(url_for('login', next=request.url))
             if roles and user['role'] not in roles:
-                return "Forbidden", 403
+                return "Forbidden: You do not have permission to view this page.", 403
             return f(*args, **kwargs)
         return wrapper
     return decorator
@@ -87,6 +90,7 @@ def login():
                 'role': user.role,
                 'hotel_id': user.hotel_id
             }
+            
             # If they were trying to scan a card, send them right back to it
             next_page = request.args.get('next')
             if next_page and '/scan' in next_page:

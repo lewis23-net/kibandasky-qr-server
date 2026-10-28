@@ -81,6 +81,7 @@
                 document.getElementById('new-email').value = '';
                 document.getElementById('new-password').value = '';
                 document.getElementById('new-hotelid').value = '';
+                setTimeout(() => { document.getElementById('create-msg').textContent = ''; }, 3000);
             } else {
                 alert("Error: " + data.error);
             }
@@ -90,4 +91,4 @@
         setInterval(refreshStats, 5000);
     </script>
 </body>
-</html>
+</html>s

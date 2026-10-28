@@ -51,7 +51,6 @@
                 document.getElementById('status').textContent = `Ready — ${roster.length} cards loaded.`;
             }
 
-            // AUTO-PROCESS THE SCANNED CARD FROM THE QR LINK
             if (SCANNED_CHILD && SCANNED_CHILD.length > 10) {
                 await handleScan(SCANNED_CHILD);
             }
@@ -110,7 +109,6 @@
         async function handleScan(decodedText) {
             let uuid = decodedText.trim();
             
-            // Clean up the URL to get just the UUID
             if (uuid.includes("/scan/")) {
                 uuid = uuid.split("/scan/")[1];
             } else if (uuid.includes("child=")) {
@@ -129,21 +127,16 @@
                 return showResult(`${child.name} already ate. Next after ${next.toLocaleString()}`, 'error');
             }
 
-            // 1. Mark as SCANNED locally (Locks it for 24 hours instantly)
             child.last_meal_at = now.toISOString();
             await dbPut('roster', child);
 
-            // 2. Queue for sync to the server
             await dbPut('queue', {
                 event_id: crypto.randomUUID(),
                 child_uuid: uuid,
                 scanned_at: now.toISOString()
             });
 
-            // 3. Show Success
             showResult(`Meal approved — ${child.name}`, 'success');
-            
-            // 4. Force sync to Render in the background after 2 seconds
             setTimeout(() => syncQueue(), 2000);
         }
 
