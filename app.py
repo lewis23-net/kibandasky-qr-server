@@ -1,5 +1,6 @@
 import os
 import csv
+import io
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -15,7 +16,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-me')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 
-# Database configuration
 db_url = os.getenv('DATABASE_URL', 'sqlite:///local.db')
 if db_url.startswith('postgres://'):
     db_url = db_url.replace('postgres://', 'postgresql://', 1)
@@ -29,33 +29,25 @@ with app.app_context():
     if not User.query.filter_by(role='admin').first():
         admin = User(
             email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
-            password_hash=generate_password_hash(
-                os.getenv('ADMIN_PASSWORD', 'changeme')
-            ),
+            password_hash=generate_password_hash(os.getenv('ADMIN_PASSWORD', 'changeme')),
             role='admin'
         )
         db.session.add(admin)
         db.session.commit()
 
-    # SAFE SYNC FROM CSV ON STARTUP
-    if os.path.exists('children.csv'):
-        try:
-            with open('children.csv', newline='', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                # Check if 'uuid' is a valid column
-                if reader.fieldnames and 'uuid' in reader.fieldnames and 'name' in reader.fieldnames:
-                    for row in reader:
-                        existing_child = Child.query.filter_by(uuid=row['uuid']).first()
-                        if not existing_child:
-                            db.session.add(Child(uuid=row['uuid'], name=row['name']))
-                        else:
-                            existing_child.name = row['name']
-                    db.session.commit()
-                    print("Successfully synced children from CSV.")
-                else:
-                    print("WARNING: children.csv is empty or missing 'uuid'/'name' headers. Skipping sync.")
-        except Exception as e:
-            print(f"Error reading children.csv: {e}")
+    # --- THE FIX: WIPE THE CHILD TABLE CLEAN ON EVERY RESTART ---
+    # This guarantees you only ever have exactly 50 children.
+    # We only do this if no meals have been served yet to avoid foreign key errors.
+    if Redemption.query.count() == 0:
+        db.session.query(Child).delete()
+        db.session.commit()
+        
+        for i in range(1, 51):
+            uid = f"00000000-0000-0000-0000-{i:012d}"
+            name = f"Child {i:02d}"
+            db.session.add(Child(uuid=uid, name=name))
+        db.session.commit()
+        print("Database cleanly synced with exactly 50 children.")
 
 def login_required(roles=None):
     def decorator(f):
