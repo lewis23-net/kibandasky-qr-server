@@ -1,6 +1,5 @@
 import os
 import csv
-import io
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -26,6 +25,7 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+    # Seed admin user
     if not User.query.filter_by(role='admin').first():
         admin = User(
             email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
@@ -35,19 +35,33 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-    # --- THE FIX: WIPE THE CHILD TABLE CLEAN ON EVERY RESTART ---
-    # This guarantees you only ever have exactly 50 children.
-    # We only do this if no meals have been served yet to avoid foreign key errors.
-    if Redemption.query.count() == 0:
+    # --- THE HARD RESET FIX ---
+    # This will forcefully clean the database if it has more than 50 children.
+    # It deletes ALL meals (redemptions) and ALL children, then recreates the exact 50.
+    if Child.query.count() != 50:
+        print(f"Detected {Child.query.count()} children. Cleaning database...")
+        
+        # 1. Delete all meal records first (to avoid foreign key errors)
+        db.session.query(Redemption).delete()
+        
+        # 2. Delete all children
         db.session.query(Child).delete()
+        
         db.session.commit()
         
+        # 3. Insert the exact 50 children
         for i in range(1, 51):
             uid = f"00000000-0000-0000-0000-{i:012d}"
             name = f"Child {i:02d}"
             db.session.add(Child(uuid=uid, name=name))
         db.session.commit()
-        print("Database cleanly synced with exactly 50 children.")
+        print("Database cleaned and reset to exactly 50 children.")
+    else:
+        print("Database already has exactly 50 children. No cleanup needed.")
+
+# --- The rest of the app.py code remains exactly the same as before ---
+# (Copy the remaining functions from the previous app.py code you have,
+# starting from `def login_required(roles=None):` down to the end)
 
 def login_required(roles=None):
     def decorator(f):
