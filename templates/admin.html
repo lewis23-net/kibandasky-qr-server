@@ -6,14 +6,17 @@
     <title>Admin Dashboard</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f8f9fa; margin: 0; }
-        h1 { margin-top: 0; }
+        .header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .header img { max-height: 50px; }
+        h1 { margin: 0; font-size: 24px; color: #333; }
         .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
         .stats { display: flex; flex-wrap: wrap; gap: 20px; }
         .stat { flex: 1; min-width: 120px; text-align: center; }
-        .stat .number { font-size: 36px; font-weight: bold; color: #007bff; }
+        .stat .number { font-size: 36px; font-weight: bold; color: #ff6b00; }
         .stat .label { font-size: 14px; color: #666; }
         #sync-status { padding: 10px; background: #fff3cd; color: #856404; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
         button { padding: 10px 18px; font-size: 15px; margin: 4px; cursor: pointer; border: none; border-radius: 6px; background: #007bff; color: white; }
+        button:hover { opacity: 0.9; }
         input { padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; width: 100%; max-width: 300px; box-sizing: border-box; display: block; }
         .success-msg { color: green; font-weight: bold; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
@@ -22,7 +25,12 @@
     </style>
 </head>
 <body>
-    <h1>Admin Dashboard</h1>
+    <!-- HEADER WITH LOGO ADDED HERE -->
+    <div class="header">
+        <img src="/static/ots.png" alt="Out of the Street Logo">
+        <h1>Admin Dashboard</h1>
+    </div>
+
     <div id="sync-status">Last synced: <span id="last-sync">never</span></div>
     
     <div class="card stats">

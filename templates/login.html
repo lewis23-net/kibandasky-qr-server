@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — Kibanda</title>
+    <title>Login — Out of the Street</title>
     <style>
         body { font-family: sans-serif; background: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 320px; }
-        h1 { font-size: 22px; text-align: center; margin-top: 0; }
-        label { display: block; margin-top: 15px; font-size: 14px; color: #555; }
+        .box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 320px; text-align: center; }
+        .logo { max-width: 120px; margin-bottom: 20px; }
+        h1 { font-size: 20px; margin-top: 0; color: #333; }
+        label { display: block; margin-top: 15px; font-size: 14px; color: #555; text-align: left; }
         input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; margin-top: 20px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
-        .error { color: #c00; background: #ffe5e5; padding: 10px; border-radius: 6px; margin-top: 15px; font-size: 14px; }
+        button { width: 100%; padding: 12px; margin-top: 20px; background: #ff6b00; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
+        .error { color: #c00; background: #ffe5e5; padding: 10px; border-radius: 6px; margin-top: 15px; font-size: 14px; text-align: left; }
     </style>
 </head>
 <body>
     <div class="box">
+        <!-- LOGO ADDED HERE -->
+        <img src="/static/ots.png" alt="Out of the Street Logo" class="logo">
         <h1>Kibanda Meal System</h1>
+        
         {% if error %}<div class="error">{{ error }}</div>{% endif %}
         <form method="POST" action="/login">
             <label>Email</label>

@@ -9,10 +9,12 @@
     <script src="/static/js/db.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #f0f0f0; margin: 0; }
-        h2 { margin-top: 0; }
+        .brand { margin-bottom: 15px; }
+        .brand img { max-height: 40px; }
+        h2 { margin-top: 0; color: #333; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto; }
         button { padding: 15px 30px; font-size: 18px; margin: 8px; cursor: pointer; border: none; border-radius: 8px; width: 90%; max-width: 320px; }
-        .scan-btn { background: #007bff; color: white; }
+        .scan-btn { background: #ff6b00; color: white; font-weight: bold; }
         .manual-btn { background: #6c757d; color: white; }
         #result { margin-top: 20px; padding: 20px; border-radius: 8px; font-size: 20px; font-weight: bold; min-height: 30px; }
         .success { background: #d4edda; color: #155724; }
@@ -31,6 +33,10 @@
         <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
     </div>
     
+    <div class="brand">
+        <img src="/static/ots.png" alt="Logo">
+    </div>
+
     <h2>Kibanda Scanner</h2>
     <p id="status">Initializing...</p>
     <button class="scan-btn" onclick="startCamera()">Scan QR Code</button>
@@ -104,7 +110,6 @@
         async function manualEntry() {
             const id = prompt('Enter the 8-character ID from the card:');
             if (!id) return;
-            // Because IDs are now predictable, we can just search for it
             const match = roster.find(c => c.uuid.endsWith(id.padStart(12, '0')));
             if (match) {
                 await handleScan(match.uuid);
