@@ -19,11 +19,17 @@
         .error { background: #f8d7da; color: #721c24; }
         .info { background: #cce5ff; color: #004085; }
         #status { color: #666; font-size: 13px; }
-        .nav-btn { background: #17a2b8; color: white; font-size: 14px; padding: 10px; width: auto; margin-bottom: 20px; }
+        
+        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .nav-btn { background: #17a2b8; color: white; font-size: 14px; padding: 10px 15px; width: auto; margin: 0; }
+        .logout-btn { background: #dc3545; color: white; font-size: 14px; padding: 10px 15px; width: auto; margin: 0; }
     </style>
 </head>
 <body>
-    <button class="nav-btn" onclick="window.location.href='/admin'">Back to Dashboard</button>
+    <div class="top-nav">
+        <button class="nav-btn" onclick="window.location.href='/admin'">Dashboard</button>
+        <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
+    </div>
     
     <h2>Kibanda Scanner</h2>
     <p id="status">Initializing...</p>
@@ -98,7 +104,8 @@
         async function manualEntry() {
             const id = prompt('Enter the 8-character ID from the card:');
             if (!id) return;
-            const match = roster.find(c => c.uuid.startsWith(id.trim()));
+            // Because IDs are now predictable, we can just search for it
+            const match = roster.find(c => c.uuid.endsWith(id.padStart(12, '0')));
             if (match) {
                 await handleScan(match.uuid);
             } else {

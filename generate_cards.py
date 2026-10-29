@@ -1,6 +1,5 @@
 import csv
 import os
-import uuid
 
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
@@ -27,7 +26,7 @@ def make_qr_image(uuid_str):
         box_size=20,  
         border=6,     
     )
-    # The correct Render link
+    # This exact URL opens your Render app and routes perfectly
     qr.add_data(f"https://kibandasky-qr-server.onrender.com/scan/{uuid_str}")
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
@@ -35,10 +34,12 @@ def make_qr_image(uuid_str):
         img = img.get_image()
     return img.convert("RGB")
 
+# Generate PREDICTABLE UUIDs so the database and the cards ALWAYS match
 children = []
 for i in range(1, 51):
     short = f"{i:03d}"
-    uid = str(uuid.uuid4())
+    # e.g., 00000000-0000-0000-0000-000000000001
+    uid = f"00000000-0000-0000-0000-{i:012d}"
     children.append({
         "uuid": uid,
         "name": f"Child {i:02d}",
