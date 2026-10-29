@@ -26,7 +26,6 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-    # Seed admin user
     if not User.query.filter_by(role='admin').first():
         admin = User(
             email=os.getenv('ADMIN_EMAIL', 'admin@kibanda.com'),
@@ -38,18 +37,25 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-    # FORCE SYNC FROM CSV ON STARTUP
+    # SAFE SYNC FROM CSV ON STARTUP
     if os.path.exists('children.csv'):
-        # Optional: Clear existing children to prevent duplicates
-        # db.session.query(Child).delete() 
-        with open('children.csv', newline='', encoding='utf-8') as f:
-            for row in csv.DictReader(f):
-                existing_child = Child.query.filter_by(uuid=row['uuid']).first()
-                if not existing_child:
-                    db.session.add(Child(uuid=row['uuid'], name=row['name']))
+        try:
+            with open('children.csv', newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                # Check if 'uuid' is a valid column
+                if reader.fieldnames and 'uuid' in reader.fieldnames and 'name' in reader.fieldnames:
+                    for row in reader:
+                        existing_child = Child.query.filter_by(uuid=row['uuid']).first()
+                        if not existing_child:
+                            db.session.add(Child(uuid=row['uuid'], name=row['name']))
+                        else:
+                            existing_child.name = row['name']
+                    db.session.commit()
+                    print("Successfully synced children from CSV.")
                 else:
-                    existing_child.name = row['name']
-            db.session.commit()
+                    print("WARNING: children.csv is empty or missing 'uuid'/'name' headers. Skipping sync.")
+        except Exception as e:
+            print(f"Error reading children.csv: {e}")
 
 def login_required(roles=None):
     def decorator(f):
@@ -89,7 +95,7 @@ def login():
                 'hotel_id': user.hotel_id
             }
             next_page = request.args.get('next')
-            if next_page and '/scan' in next_page:
+            if next_page:
                 return redirect(next_page)
             
             if user.role == 'admin':

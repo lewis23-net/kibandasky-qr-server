@@ -6,6 +6,6 @@ gunicorn==21.2.0
 psycopg2-binary==2.9.9
 psycopg[binary]
 qrcode[pil]==7.4.2
-Pillow==10.1.0
+Pillow==12.0.0
 python-dotenv==1.0.0
 requests==2.31.0
